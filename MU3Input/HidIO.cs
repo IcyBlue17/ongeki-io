@@ -47,6 +47,9 @@ namespace MU3Input
 
         private int _openCount = 0;
         private OutputData _data;
+        private readonly byte[] _lastReport = new byte[64];
+
+        public readonly LeverCalibration Calibration = LeverCalibration.Load();
 
         public OutputData Data => _data;
         
@@ -77,7 +80,16 @@ namespace MU3Input
                 //var value = Math.Pow(_data.Lever / 1023.0, 0.4545) - 0.5;
                 //return (short) (value * 32766);
                 //return (short)(_data.Lever * 32.0 - 16382);
-                return (short)(_data.Lever * 32.0 - 16382);
+                return Calibration.Map(_data.Lever);
+            }
+        }
+
+        public byte[] LastReport
+        {
+            get
+            {
+                lock (_lastReport)
+                    return (byte[]) _lastReport.Clone();
             }
         }
 
@@ -131,6 +143,10 @@ namespace MU3Input
                 }
 
                 _data = ByteArrayToStructure<OutputData>(_inBuffer);
+                Calibration.Observe(_data.Lever);
+
+                lock (_lastReport)
+                    Buffer.BlockCopy(_inBuffer, 0, _lastReport, 0, _lastReport.Length);
             }
         }
         

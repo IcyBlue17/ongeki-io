@@ -35,6 +35,89 @@ namespace MU3Input
             };
 
             _io = io;
+
+            SetupLeverCalibration();
+        }
+
+        private Label _lblLever;
+        private Button _btnCalStart;
+        private Button _btnCalSave;
+        private CheckBox _chkInvert;
+
+        private void SetupLeverCalibration()
+        {
+            var top = ClientSize.Height;
+            ClientSize = new Size(ClientSize.Width, top + 76);
+
+            _lblLever = new Label
+            {
+                Location = new Point(12, top + 4),
+                Size = new Size(ClientSize.Width - 24, 36),
+                Font = new Font(FontFamily.GenericMonospace, 8.5f),
+            };
+
+            _btnCalStart = new Button
+            {
+                Location = new Point(12, top + 44),
+                Size = new Size(110, 26),
+                Text = "开始摇杆校准",
+            };
+            _btnCalStart.Click += (s, e) =>
+            {
+                _io.Calibration.ResetSeen();
+                _io.Calibration.Calibrating = true;
+                MessageBox.Show("把摇杆缓慢拨到最左、再拨到最右（各到底一次），然后点「保存校准」。", "摇杆校准");
+            };
+
+            _btnCalSave = new Button
+            {
+                Location = new Point(130, top + 44),
+                Size = new Size(110, 26),
+                Text = "保存校准",
+            };
+            _btnCalSave.Click += (s, e) =>
+            {
+                var cal = _io.Calibration;
+                if (!cal.SaveSeen())
+                {
+                    MessageBox.Show("没有检测到足够的摇杆行程，请先点「开始摇杆校准」并把摇杆拨到两端。", "摇杆校准");
+                    return;
+                }
+
+                cal.Calibrating = false;
+                MessageBox.Show(string.Format("已保存：min={0} max={1}\n记得在游戏测试菜单里重新做一次摇杆校准。", cal.Min, cal.Max), "摇杆校准");
+            };
+
+            _chkInvert = new CheckBox
+            {
+                Location = new Point(252, top + 48),
+                Size = new Size(120, 20),
+                Text = "反转方向",
+                Checked = _io.Calibration.Invert,
+            };
+            _chkInvert.CheckedChanged += (s, e) =>
+            {
+                _io.Calibration.Invert = _chkInvert.Checked;
+                _io.Calibration.Save();
+            };
+
+            Controls.Add(_lblLever);
+            Controls.Add(_btnCalStart);
+            Controls.Add(_btnCalSave);
+            Controls.Add(_chkInvert);
+        }
+
+        private void UpdateLeverInfo()
+        {
+            var cal = _io.Calibration;
+            var report = _io.LastReport;
+            var mode = cal.Calibrating ? "校准中" : cal.HasSaved ? "已校准" : "自动";
+            var seen = cal.SeenMax >= cal.SeenMin ? cal.SeenMin + "~" + cal.SeenMax : "-";
+
+            _lblLever.Text = string.Format(
+                "摇杆 原始={0} 已扫过={1} 保存={2}~{3} 输出={4} [{5}]\nHID: {6}",
+                cal.Raw, seen, cal.Min, cal.Max, _io.Lever, mode,
+                BitConverter.ToString(report, 0, 16));
         }
         
         public static byte[] StringToByteArray(string hex)
@@ -75,7 +158,8 @@ namespace MU3Input
                     }
 
 
-                    trackBar1.Value = _io.Lever;
+                    trackBar1.Value = Math.Max(trackBar1.Minimum, Math.Min(trackBar1.Maximum, (int) _io.Lever));
+                    UpdateLeverInfo();
 
                     if (_io.Scan)
                     {
