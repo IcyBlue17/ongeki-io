@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 using System.Runtime.InteropServices;
 using System.Diagnostics;
 
@@ -93,6 +94,26 @@ namespace MU3Input
         {
             _test.SetColor(data);
             Io.SetLed(data);
+        }
+
+        // segatools LED API 0x0101 (mu3_io_led_init / mu3_io_led_set_colors).
+        // Board 0 (cab lights) has no hardware here and is ignored.
+        // Board 1 is the six controller buttons: 3 left then 3 right, RGB each.
+        [DllExport(CallingConvention.Cdecl, ExportName = "mu3_io_led_init")]
+        public static uint LedInit()
+        {
+            return 0;
+        }
+
+        [DllExport(CallingConvention.Cdecl, ExportName = "mu3_io_led_set_colors")]
+        public static void LedSetColors(byte board, IntPtr rgb)
+        {
+            if (board != 1 || rgb == IntPtr.Zero || Io == null)
+                return;
+
+            var colors = new byte[18];
+            Marshal.Copy(rgb, colors, 0, colors.Length);
+            Io.SetButtonLeds(colors);
         }
     }
 }

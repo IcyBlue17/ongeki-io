@@ -162,6 +162,28 @@ namespace MU3Input
             _hid.Send(0, outBuffer, 64, 1000);
         }
         
+        public unsafe void SetButtonLeds(byte[] rgb)
+        {
+            if (!IsConnected)
+                return;
+
+            SetLedInput led;
+            led.Type = 0;
+            led.LedBrightness = 40;
+
+            for (var i = 0; i < 9; i++)
+            {
+                led.LedColors[i] = rgb[i];
+                led.LedColors[i + 15] = rgb[i + 9];
+            }
+
+            var outBuffer = new byte[64];
+            fixed (void* d = outBuffer)
+                CopyMemory(d, &led, 64);
+
+            _hid.Send(0, outBuffer, 64, 1000);
+        }
+
         public unsafe void SetAimiId(byte[] id)
         {
             if (!IsConnected)
